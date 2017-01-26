@@ -11,6 +11,7 @@ from seamonsters.drive import AccelerationFilterDrive
 from seamonsters.drive import FieldOrientedDrive
 from seamonsters.holonomicDrive import HolonomicDrive
 from seamonsters.logging import LogState
+from vision import Vision
 
 from robotpy_ext.common_drivers.navx import AHRS
 import math
@@ -145,6 +146,7 @@ class DriveBot(Module):
         self._setPID((3.0,0.0,2.0,0.0))
         self.count = 0
         self.startPosition = self.talons[0].getPosition()
+        self.vision = Vision()
 
     def autonomousPeriodic(self):
         self.count = self.count + 1
@@ -152,7 +154,19 @@ class DriveBot(Module):
         if abs(self.startPosition - currentPosition) < 10000:
             self.drive.drive(0.3,(math.pi)/2,0)
         else:
-            self.drive.drive(0,0,0)
+            contours = self.vision.getContours()
+            centerpoint = Vision.targetCenter(contours)
+            if centerpoint != None:
+                xposition = centerpoint[0]
+                difference = centerpoint - Vision.WIDTH/2
+                if abs(difference) <= 10:
+                    self.drive.drive(0,0,0)
+                elif difference > 0:
+                    self.drive.drive(0,0,0.3)
+                elif difference < 0:
+                    self.drive.drive(0,0,-0.3)
+            else:
+                self.drive.drive(0,0,0)
 
     def _lerpPID(self, magnitude):
         if magnitude <= self.slowPIDScale:
